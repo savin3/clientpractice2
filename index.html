@@ -25,7 +25,8 @@
                 :is-blocked="isFirstColumnBlocked && col.id === 1"
                 @move-to-column="moveCardToColumn"
                 @set-completion-date="setCompletionDate"
-                @percentage-changed="updatePercentage">
+                @percentage-changed="updatePercentage"
+                @toggle-item="toggleItemInCard">
                 </column-component>
             </div>
         </div>

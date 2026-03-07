@@ -1,15 +1,10 @@
 Vue.component('card-component', {
     props: ['cardData', 'isBlocked'],
-    data () {
-        return {
-            completedIndexes: []
-        }
-    },
     computed: {
         completionPercentage() {
             if (this.cardData.items.length === 0)
                 return 0
-            return (this.completedIndexes.length / this.cardData.items.length) * 100
+            return (this.cardData.completedIndexes.length / this.cardData.items.length) * 100
         }
     },
     watch: {
@@ -29,14 +24,13 @@ Vue.component('card-component', {
     },
     methods: {
         toggleItem(index) {
-            if (this.completedIndexes.includes(index)) {
-                this.completedIndexes = this.completedIndexes.filter(i => i !== index)
-            } else {
-                this.completedIndexes.push(index)
-            }
+            this.$emit('toggle-item', {
+                cardId: this.cardData.id,
+                index: index
+            })
         },
         isCompleted(index) {
-            return this.completedIndexes.includes(index)
+            return this.cardData.completedIndexes.includes(index)
         }
     },
     template: `
@@ -52,7 +46,11 @@ Vue.component('card-component', {
                         {{ item }}
                     </label>
                 </li>
-            </ul>  
+            </ul>
+            
+            <div v-if="cardData.completedAt" class="completion-date">
+                Done at: {{ cardData.completedAt }}
+            </div>  
         </div>
     `
 })
@@ -70,7 +68,8 @@ Vue.component('column-component', {
                 :is-blocked="isBlocked"
                 @move-to-column="$emit('move-to-column', $event)"
                 @set-completion-date="$emit('set-completion-date', $event)"
-                @percentage-changed="$emit('percentage-changed', $event)">
+                @percentage-changed="$emit('percentage-changed', $event)"
+                @toggle-item="$emit('toggle-item', $event)">
             </card-component>
         </div>
     `,
@@ -135,14 +134,12 @@ Vue.component('add-card-form', {
                 return
             }
 
-            const cardsInColumn = this.allCards.filter(
-                card => card.column === 1).length
-
             const newCard = {
                 id: Math.random(),
                 title: this.title,
                 items: itemsList,
-                column: 1
+                column: 1,
+                completedIndexes: []
             }
 
             this.$emit('card-created', newCard)
@@ -227,11 +224,30 @@ let app = new Vue ({
             const hasCardOver50 = this.allCards.some(card =>
             card.column === 1 && this.cardPercentages[card.id] > 50)
 
+            const wasBlocked = this.isFirstColumnBlocked
             this.isFirstColumnBlocked = cardsInSecond >= 5 && hasCardOver50
+
+            if (wasBlocked && !this.isFirstColumnBlocked) {
+                this.allCards.forEach(card => {
+                    if (card.column === 1 && this.cardPercentages[card.id] > 50) {
+                        card.column = 2
+                    }
+                })
+            }
         },
         updatePercentage(data) {
             this.cardPercentages[data.cardId] = data.percentage
             this.checkBlocking()
+        },
+        toggleItemInCard (data) {
+            const card = this.allCards.find(card => card.id === data.cardId)
+            if (!card) return
+
+            if (card.completedIndexes.includes(data.index)) {
+                card.completedIndexes = card.completedIndexes.filter(i => i !== data.index)
+            } else {
+                card.completedIndexes.push(data.index)
+            }
         }
     }
 })
