@@ -22,8 +22,10 @@
                 :key="col.id"
                 :column-id="col.id"
                 :all-cards="allCards"
+                :is-blocked="isFirstColumnBlocked && col.id === 1"
                 @move-to-column="moveCardToColumn"
-                @set-completion-date="setCompletionDate">>
+                @set-completion-date="setCompletionDate"
+                @percentage-changed="updatePercentage">
                 </column-component>
             </div>
         </div>

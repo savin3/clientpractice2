@@ -1,19 +1,23 @@
 Vue.component('card-component', {
-    props: ['cardData'],
+    props: ['cardData', 'isBlocked'],
     data () {
         return {
-            completedItems: []
+            completedIndexes: []
         }
     },
     computed: {
         completionPercentage() {
             if (this.cardData.items.length === 0)
                 return 0
-            return (this.completedItems.length / this.cardData.items.length) * 100
+            return (this.completedIndexes.length / this.cardData.items.length) * 100
         }
     },
     watch: {
         completionPercentage (newVal) {
+            this.$emit('percentage-changed', {
+                cardId: this.cardData.id,
+                percentage: newVal
+            })
             if (newVal > 50 && this.cardData.column === 1) {
                 this.$emit('move-to-column', {cardId: this.cardData.id, column: 2})
             }
@@ -24,26 +28,27 @@ Vue.component('card-component', {
         }
     },
     methods: {
-        toggleItem(item) {
-            if (this.completedItems.includes(item)) {
-                this.completedItems = this.completedItems.filter(i => i !== item)
+        toggleItem(index) {
+            if (this.completedIndexes.includes(index)) {
+                this.completedIndexes = this.completedIndexes.filter(i => i !== index)
             } else {
-                this.completedItems.push(item)
+                this.completedIndexes.push(index)
             }
         },
-        isCompleted(item) {
-            return this.completedItems.includes(item)
+        isCompleted(index) {
+            return this.completedIndexes.includes(index)
         }
     },
     template: `
         <div class="card">
             <h3> {{ cardData.title }} </h3>
             <ul>
-                <li v-for="item in cardData.items" :key="item">
+                <li v-for="(item, index) in cardData.items" :key="index">
                     <label>
                         <input type="checkbox"
-                        @change="toggleItem(item)"
-                        :checked="isCompleted(item)">
+                        @change="toggleItem(index)"
+                        :checked="isCompleted(index)"
+                        :disabled="isBlocked">
                         {{ item }}
                     </label>
                 </li>
@@ -53,7 +58,7 @@ Vue.component('card-component', {
 })
 
 Vue.component('column-component', {
-    props: ['columnId', 'allCards'],
+    props: ['columnId', 'allCards', 'isBlocked'],
     template: `
         <div class="column" :class="columnClass">
             <h2> {{ columnTitle }} </h2>
@@ -62,12 +67,11 @@ Vue.component('column-component', {
                 v-for="card in columnCards"
                 :key="card.id"
                 :card-data="card"
+                :is-blocked="isBlocked"
                 @move-to-column="$emit('move-to-column', $event)"
-                @set-completion-date="$emit('set-completion-date', $event)">
+                @set-completion-date="$emit('set-completion-date', $event)"
+                @percentage-changed="$emit('percentage-changed', $event)">
             </card-component>
-            
-            <button class="add-card-button" 
-            @click="$emit('add-click', columnId)">Add card</button>
         </div>
     `,
     computed: {
@@ -123,15 +127,22 @@ Vue.component('add-card-form', {
                 return
             }
 
-            const cardsInColumn1 = this.allCards.filter(
+            const cardsInFirstColumn = this.allCards.filter(
+                card => card.column === 1).length
+
+            if (cardsInFirstColumn >= 3) {
+                this.error = 'Maximum 3 cards in first column'
+                return
+            }
+
+            const cardsInColumn = this.allCards.filter(
                 card => card.column === 1).length
 
             const newCard = {
-                id: cardsInColumn + 1,
+                id: Math.random(),
                 title: this.title,
                 items: itemsList,
-                column: 1,
-                completedItems: []
+                column: 1
             }
 
             this.$emit('card-created', newCard)
@@ -177,24 +188,50 @@ let app = new Vue ({
             {id: 2},
             {id: 3}
         ],
-        allCards: []
+        allCards: [],
+        isFirstColumnBlocked: false,
+        cardPercentages: {}
     },
     methods: {
         addCard(cardData) {
             this.allCards.push(cardData)
+            this.checkBlocking()
         },
         moveCardToColumn(cardInfo) {
-            const card = this.allCards.find(card => card.id === cardInfo.cardId)
+            const foundCard = this.allCards.find(card => card.id === cardInfo.cardId)
+            if (!foundCard) return
 
-            if (foundCard) {
-                foundCard.column = cardInfo.column
+            if (cardInfo.column === 2) {
+                const cardsInSecondColumn = this.allCards.filter(
+                    card => card.column === 2).length
+
+                if (cardsInSecondColumn >= 5) {
+                    alert('There are a maximum of 5 cards in the second column. Complete one card in the second column first.')
+                    return
+                }
             }
+
+            foundCard.column = cardInfo.column
+            this.checkBlocking()
         },
         setCompletionDate (cardId) {
             const foundCard = this.allCards.find(card => card.id === cardId)
             if (foundCard) {
-                foundCard.completedAt = new Date().toLocalString()
+                foundCard.completedAt = new Date().toLocaleString()
             }
+        },
+        checkBlocking() {
+            const cardsInSecond = this.allCards.filter(
+                card => card.column === 2).length
+
+            const hasCardOver50 = this.allCards.some(card =>
+            card.column === 1 && this.cardPercentages[card.id] > 50)
+
+            this.isFirstColumnBlocked = cardsInSecond >= 5 && hasCardOver50
+        },
+        updatePercentage(data) {
+            this.cardPercentages[data.cardId] = data.percentage
+            this.checkBlocking()
         }
     }
 })
