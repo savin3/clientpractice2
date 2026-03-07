@@ -7,18 +7,23 @@
     <script defer src="js/vue.js"></script>
     <script defer src="js/main.js"></script>
     <link rel="stylesheet" href="css/main.css">
-    <title>Personal note</title>
+    <title>My notes</title>
 </head>
 <body>
     <div id="app">
-        <div class="column column 1">
+        <div class="app">
+            <h1>My notes</h1>
 
-        </div>
-        <div class="column column 2">
+            <add-card-form></add-card-form>
 
-        </div>
-        <div class="column column 3">
-
+            <div class="columns-container">
+                <column-component
+                v-for="col in columns"
+                :key="col.id"
+                :column-id="col.id"
+                :all-cards="allCards">
+                </column-component>
+            </div>
         </div>
     </div>
 </body>

@@ -11,13 +11,13 @@ Vue.component('card-component', {
 })
 
 Vue.component('column-component', {
-    props: ['columnID', 'allCards'],
+    props: ['columnId', 'allCards'],
     template: `
         <div class="column" :class="columnClass">
             <h2> {{ columnTitle }} </h2>
             
             <card-component
-                v-for="card in columnСards"
+                v-for="card in columnCards"
                 :key="card.id"
                 :card-data="card">
             </card-component>
@@ -49,6 +49,7 @@ Vue.component('column-component', {
 })
 
 Vue.component('add-card-form', {
+    props: ['columnId', 'currentCardsCount'],
     data () {
         return {
             title: '',
@@ -68,7 +69,7 @@ Vue.component('add-card-form', {
                 return
             }
 
-            if (itemsList.lenght < 3) {
+            if (itemsList.length < 3) {
                 this.error = 'Minimum of 3 points'
                 return
             }
@@ -84,8 +85,40 @@ Vue.component('add-card-form', {
                 items: itemsList,
                 column: this.columnId
             }
+
+            this.$emit('card-created', newCard)
+
+            this.title = ''
+            this.itemsInput = ''
+            this.error = ''
         }
-    }
+    },
+    template: `
+        <div class="add-form">
+            <h3>Create new card</h3>
+            
+            <div class="form-group">
+                <label>Title:</label>
+                <input type="text" v-model="title" placeholder="Buy products">
+            </div>
+            
+            <div class="form-group">
+                <label>Points:</label>
+                <textarea 
+                    v-model="itemsInput" 
+                    placeholder="Milk, Apple, Pineapple"
+                    rows="3">    
+                </textarea>
+                <p>Minimum 3, maximum 5 points</p>
+            </div>
+            
+            <div v-if="error" class="error">
+                {{ error }}
+            </div>
+            
+            <button @click="addCard">Create card</button>
+        </div>
+    `
 })
 
 let app = new Vue ({
@@ -99,16 +132,9 @@ let app = new Vue ({
         allCards: [],
         activeColumnId: null
     },
-    template: `
-        <div class="app">
-            <h1>My notes</h1>
-            <div class="columns-container">
-                <column-component 
-                v-for="col in columns"
-                :key="col.id"
-                :column-data="col">
-                </column-component>
-            </div>
-        </div>
-    `
+    methods: {
+        addCard(cardData) {
+            this.allCards.push(cardData)
+        }
+    }
 })
