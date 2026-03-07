@@ -30,7 +30,7 @@ Vue.component('column-component', {
                 col2: 'In progress',
                 col3: 'Done',
             }
-            return titles[this.columnTitle]
+            return titles[this.columnData.id]
         },
         columnClass() {
             return {
@@ -50,5 +50,17 @@ let app = new Vue ({
             {id: 'col2', cards: []},
             {id: 'col3', cards: []},
         ]
-    }
+    },
+    template: `
+        <div class="app">
+            <h1>My notes</h1>
+            <div class="columns-container">
+                <column-component 
+                v-for="col in columns"
+                :key="col.id"
+                :column-data="col">
+                </column-component>
+            </div>
+        </div>
+    `
 })
