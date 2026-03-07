@@ -21,7 +21,9 @@
                 v-for="col in columns"
                 :key="col.id"
                 :column-id="col.id"
-                :all-cards="allCards">
+                :all-cards="allCards"
+                @move-to-column="moveCardToColumn"
+                @set-completion-date="setCompletionDate">>
                 </column-component>
             </div>
         </div>

@@ -23,12 +23,31 @@ Vue.component('card-component', {
             }
         }
     },
+    methods: {
+        toggleItem(item) {
+            if (this.completedItems.includes(item)) {
+                this.completedItems = this.completedItems.filter(i => i !== item)
+            } else {
+                this.completedItems.push(item)
+            }
+        },
+        isCompleted(item) {
+            return this.completedItems.includes(item)
+        }
+    },
     template: `
         <div class="card">
             <h3> {{ cardData.title }} </h3>
             <ul>
-                <li v-for="item in cardData.items"> {{ item }} </li>
-            </ul>
+                <li v-for="item in cardData.items" :key="item">
+                    <label>
+                        <input type="checkbox"
+                        @change="toggleItem(item)"
+                        :checked="isCompleted(item)">
+                        {{ item }}
+                    </label>
+                </li>
+            </ul>  
         </div>
     `
 })
@@ -42,7 +61,9 @@ Vue.component('column-component', {
             <card-component
                 v-for="card in columnCards"
                 :key="card.id"
-                :card-data="card">
+                :card-data="card"
+                @move-to-column="$emit('move-to-column', $event)"
+                @set-completion-date="$emit('set-completion-date', $event)">
             </card-component>
             
             <button class="add-card-button" 
@@ -161,6 +182,19 @@ let app = new Vue ({
     methods: {
         addCard(cardData) {
             this.allCards.push(cardData)
+        },
+        moveCardToColumn(cardInfo) {
+            const card = this.allCards.find(card => card.id === cardInfo.cardId)
+
+            if (foundCard) {
+                foundCard.column = cardInfo.column
+            }
+        },
+        setCompletionDate (cardId) {
+            const foundCard = this.allCards.find(card => card.id === cardId)
+            if (foundCard) {
+                foundCard.completedAt = new Date().toLocalString()
+            }
         }
     }
 })
