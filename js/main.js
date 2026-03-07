@@ -192,6 +192,7 @@ let app = new Vue ({
     methods: {
         addCard(cardData) {
             this.allCards.push(cardData)
+            this.saveToLocalStorage()
             this.checkBlocking()
         },
         moveCardToColumn(cardInfo) {
@@ -209,12 +210,14 @@ let app = new Vue ({
             }
 
             foundCard.column = cardInfo.column
+            this.saveToLocalStorage()
             this.checkBlocking()
         },
         setCompletionDate (cardId) {
             const foundCard = this.allCards.find(card => card.id === cardId)
             if (foundCard) {
                 foundCard.completedAt = new Date().toLocaleString()
+                this.saveToLocalStorage()
             }
         },
         checkBlocking() {
@@ -248,6 +251,20 @@ let app = new Vue ({
             } else {
                 card.completedIndexes.push(data.index)
             }
+            this.saveToLocalStorage()
+        },
+        saveToLocalStorage() {
+            localStorage.setItem('notes-app', JSON.stringify(this.allCards))
+        },
+
+        loadFromLocalStorage() {
+            const saved = localStorage.getItem('notes-app')
+            if (saved) {
+                this.allCards = JSON.parse(saved)
+            }
         }
+    },
+    mounted() {
+        this.loadFromLocalStorage()
     }
 })
