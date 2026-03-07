@@ -11,32 +11,78 @@ Vue.component('card-component', {
 })
 
 Vue.component('column-component', {
-    props: ['columnData'],
+    props: ['columnID', 'allCards'],
     template: `
         <div class="column" :class="columnClass">
             <h2> {{ columnTitle }} </h2>
             
             <card-component
-                v-for="card in columnData.cards"
+                v-for="card in columnСards"
                 :key="card.id"
                 :card-data="card">
             </card-component>
+            
+            <button class="add-card-button" 
+            @click="$emit('add-click', columnId)">Add card</button>
         </div>
     `,
     computed: {
         columnTitle() {
             const titles = {
-                col1: 'Need to do',
-                col2: 'In progress',
-                col3: 'Done',
+                1: 'Need to do',
+                2: 'In progress',
+                3: 'Done',
             }
-            return titles[this.columnData.id]
+            return titles[this.columnId]
         },
         columnClass() {
             return {
-                'column-first': this.columnData.id === 'col1',
-                'column-second': this.columnData.id === 'col2',
-                'column-third': this.columnData.id === 'col3'
+                'column-first': this.columnId === 1,
+                'column-second': this.columnId === 2,
+                'column-third': this.columnId === 3
+            }
+        },
+        columnCards() {
+            return this.allCards.filter(card => card.column === this.columnId)
+        }
+    }
+})
+
+Vue.component('add-card-form', {
+    data () {
+        return {
+            title: '',
+            itemsInput: '',
+            error: '',
+        }
+    },
+    methods: {
+        addCard() {
+            const itemsList = this.itemsInput
+                .split(',')
+                .map(item=> item.trim())
+                .filter(item => item !== '')
+
+            if (!this.title) {
+                this.error = 'Enter title'
+                return
+            }
+
+            if (itemsList.lenght < 3) {
+                this.error = 'Minimum of 3 points'
+                return
+            }
+
+            if (itemsList.length > 5) {
+                this.error = 'Maximum of 5 points'
+                return
+            }
+
+            const newCard = {
+                id: this.currentCardsCount + 1,
+                title: this.title,
+                items: itemsList,
+                column: this.columnId
             }
         }
     }
@@ -46,10 +92,12 @@ let app = new Vue ({
     el: '#app',
     data: {
         columns: [
-            {id: 'col1', cards: []},
-            {id: 'col2', cards: []},
-            {id: 'col3', cards: []},
-        ]
+            {id: 1},
+            {id: 2},
+            {id: 3}
+        ],
+        allCards: [],
+        activeColumnId: null
     },
     template: `
         <div class="app">
