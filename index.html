@@ -14,7 +14,7 @@
         <div class="app">
             <h1>My notes</h1>
 
-            <add-card-form></add-card-form>
+            <add-card-form :all-cards="allCards" @card-created="addCard"></add-card-form>
 
             <div class="columns-container">
                 <column-component

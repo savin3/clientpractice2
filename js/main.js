@@ -1,5 +1,28 @@
 Vue.component('card-component', {
     props: ['cardData'],
+    data () {
+        return {
+            completedItems: []
+        }
+    },
+    computed: {
+        completionPercentage() {
+            if (this.cardData.items.length === 0)
+                return 0
+            return (this.completedItems.length / this.cardData.items.length) * 100
+        }
+    },
+    watch: {
+        completionPercentage (newVal) {
+            if (newVal > 50 && this.cardData.column === 1) {
+                this.$emit('move-to-column', {cardId: this.cardData.id, column: 2})
+            }
+            if (newVal === 100 && this.cardData.column === 2) {
+                this.$emit('move-to-column', {cardId: this.cardData.id, column: 3})
+                this.$emit('set-completion-date', this.cardData.id)
+            }
+        }
+    },
     template: `
         <div class="card">
             <h3> {{ cardData.title }} </h3>
@@ -49,12 +72,12 @@ Vue.component('column-component', {
 })
 
 Vue.component('add-card-form', {
-    props: ['columnId', 'currentCardsCount'],
+    props: ['allCards'],
     data () {
         return {
             title: '',
             itemsInput: '',
-            error: '',
+            error: ''
         }
     },
     methods: {
@@ -79,11 +102,15 @@ Vue.component('add-card-form', {
                 return
             }
 
+            const cardsInColumn1 = this.allCards.filter(
+                card => card.column === 1).length
+
             const newCard = {
-                id: this.currentCardsCount + 1,
+                id: cardsInColumn + 1,
                 title: this.title,
                 items: itemsList,
-                column: this.columnId
+                column: 1,
+                completedItems: []
             }
 
             this.$emit('card-created', newCard)
@@ -129,8 +156,7 @@ let app = new Vue ({
             {id: 2},
             {id: 3}
         ],
-        allCards: [],
-        activeColumnId: null
+        allCards: []
     },
     methods: {
         addCard(cardData) {
