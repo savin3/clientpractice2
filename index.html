@@ -23,10 +23,13 @@
                 :column-id="col.id"
                 :all-cards="allCards"
                 :is-blocked="isFirstColumnBlocked && col.id === 1"
+                :is-priority-blocked="isPriorityBlocked"
+                :priority-card-id="priorityCardId"
                 @move-to-column="moveCardToColumn"
                 @set-completion-date="setCompletionDate"
                 @percentage-changed="updatePercentage"
-                @toggle-item="toggleItemInCard">
+                @toggle-item="toggleItemInCard"
+                @toggle-skip="toggleSkipInCard">
                 </column-component>
             </div>
         </div>

@@ -1,5 +1,5 @@
 Vue.component('card-component', {
-    props: ['cardData', 'isBlocked'],
+    props: ['cardData', 'isBlocked', 'isPriorityBlocked', 'priorityCardId'],
     computed: {
         completionPercentage() {
             if (this.cardData.items.length === 0)
@@ -13,10 +13,21 @@ Vue.component('card-component', {
                 cardId: this.cardData.id,
                 percentage: newVal
             })
+
+            if (this.cardData.column === 2 && this.cardData.skippedIndexes && this.cardData.skippedIndexes.length > 0) {
+                this.$emit('move-to-column', {cardId: this.cardData.id, column: 4})
+                return
+            }
+
             if (newVal > 50 && this.cardData.column === 1) {
                 this.$emit('move-to-column', {cardId: this.cardData.id, column: 2})
             }
             if (newVal === 100 && this.cardData.column === 2) {
+                this.$emit('move-to-column', {cardId: this.cardData.id, column: 3})
+                this.$emit('set-completion-date', this.cardData.id)
+            }
+
+            if (this.cardData.column === 4 && this.cardData.completedIndexes.length === this.cardData.items.length) {
                 this.$emit('move-to-column', {cardId: this.cardData.id, column: 3})
                 this.$emit('set-completion-date', this.cardData.id)
             }
@@ -29,22 +40,47 @@ Vue.component('card-component', {
                 index: index
             })
         },
+        toggleSkip(index) {
+            this.$emit('toggle-skip', {
+                cardId: this.cardData.id,
+                index: index
+            })
+        },
         isCompleted(index) {
             return this.cardData.completedIndexes.includes(index)
+        },
+        isSkipped(index) {
+            return this.cardData.skippedIndexes && this.cardData.skippedIndexes.includes(index)
         }
     },
     template: `
-        <div class="card">
-            <h3> {{ cardData.title }} </h3>
-            <ul>
-                <li v-for="(item, index) in cardData.items" :key="index">
-                    <label>
-                        <input type="checkbox"
+        <div class="card" :class="{ 'priority-card': cardData.isPriority }">
+            <div class="card-header">
+                <h3 class="card-title"> {{ cardData.title }} </h3>
+                <span v-if="cardData.isPriority" class="priority-badge">Приоритет</span>
+            </div>
+            
+            <ul class="card-items">
+                <li v-for="(item, index) in cardData.items" :key="index" class="card-item">
+                    <label class="item-label">
+                    <input type="checkbox"
                         @change="toggleItem(index)"
                         :checked="isCompleted(index)"
-                        :disabled="isBlocked">
-                        {{ item }}
-                    </label>
+                        :disabled="isBlocked || (isPriorityBlocked && !cardData.isPriority) || 
+                        cardData.column === 3 ||
+                        isCompleted(index)">
+                    <span :class="{ 
+                        'completed': isCompleted(index), 
+                        'skipped': isSkipped(index) 
+                    }">{{ item }}</span>
+                </label>
+                    
+                    <button v-if="cardData.column === 2 && !cardData.isPriority" 
+                    @click="toggleSkip(index)"
+                    :disabled="isBlocked || (isPriorityBlocked && !cardData.isPriority) || isCompleted(index)"
+                    class="skip-button">
+                    Skip
+                    </button>
                 </li>
             </ul>
             
@@ -56,7 +92,7 @@ Vue.component('card-component', {
 })
 
 Vue.component('column-component', {
-    props: ['columnId', 'allCards', 'isBlocked'],
+    props: ['columnId', 'allCards', 'isBlocked', 'isPriorityBlocked', 'priorityCardId'],
     template: `
         <div class="column" :class="columnClass">
             <h2> {{ columnTitle }} </h2>
@@ -66,10 +102,13 @@ Vue.component('column-component', {
                 :key="card.id"
                 :card-data="card"
                 :is-blocked="isBlocked"
+                :is-priority-blocked="isPriorityBlocked"
+                :priority-card-id="priorityCardId"
                 @move-to-column="$emit('move-to-column', $event)"
                 @set-completion-date="$emit('set-completion-date', $event)"
                 @percentage-changed="$emit('percentage-changed', $event)"
-                @toggle-item="$emit('toggle-item', $event)">
+                @toggle-item="$emit('toggle-item', $event)"
+                @toggle-skip="$emit('toggle-skip', $event)">
             </card-component>
         </div>
     `,
@@ -79,6 +118,7 @@ Vue.component('column-component', {
                 1: 'Need to do',
                 2: 'In progress',
                 3: 'Done',
+                4: 'Refine it'
             }
             return titles[this.columnId]
         },
@@ -86,7 +126,8 @@ Vue.component('column-component', {
             return {
                 'column-first': this.columnId === 1,
                 'column-second': this.columnId === 2,
-                'column-third': this.columnId === 3
+                'column-third': this.columnId === 3,
+                'column-fourth': this.columnId === 4
             }
         },
         columnCards() {
@@ -101,7 +142,8 @@ Vue.component('add-card-form', {
         return {
             title: '',
             itemsInput: '',
-            error: ''
+            error: '',
+            isPriority: false
         }
     },
     methods: {
@@ -139,7 +181,9 @@ Vue.component('add-card-form', {
                 title: this.title,
                 items: itemsList,
                 column: 1,
-                completedIndexes: []
+                completedIndexes: [],
+                skippedIndexes: [],
+                isPriority: this.isPriority
             }
 
             this.$emit('card-created', newCard)
@@ -168,6 +212,13 @@ Vue.component('add-card-form', {
                 <p>Minimum 3, maximum 5 points</p>
             </div>
             
+            <div class="form-group checkbox-group">
+                <label>
+                <input type="checkbox" v-model="isPriority">
+                Priority
+                </label>
+            </div>
+            
             <div v-if="error" class="error">
                 {{ error }}
             </div>
@@ -183,17 +234,21 @@ let app = new Vue ({
         columns: [
             {id: 1},
             {id: 2},
-            {id: 3}
+            {id: 3},
+            {id: 4}
         ],
         allCards: [],
         isFirstColumnBlocked: false,
-        cardPercentages: {}
+        cardPercentages: {},
+        isPriorityBlocked: false,
+        priorityCardId: null
     },
     methods: {
         addCard(cardData) {
             this.allCards.push(cardData)
             this.saveToLocalStorage()
             this.checkBlocking()
+            this.checkPriorityBlocking()
         },
         moveCardToColumn(cardInfo) {
             const foundCard = this.allCards.find(card => card.id === cardInfo.cardId)
@@ -212,6 +267,12 @@ let app = new Vue ({
             foundCard.column = cardInfo.column
             this.saveToLocalStorage()
             this.checkBlocking()
+            this.checkPriorityBlocking()
+
+            if (cardInfo.column === 3) {
+                foundCard.skippedIndexes = []
+                this.saveToLocalStorage()
+            }
         },
         setCompletionDate (cardId) {
             const foundCard = this.allCards.find(card => card.id === cardId)
@@ -246,6 +307,15 @@ let app = new Vue ({
             const card = this.allCards.find(card => card.id === data.cardId)
             if (!card) return
 
+            if (card.column === 3) {
+                return
+            }
+
+            if (!card.isPriority && this.isPriorityBlocked) {
+                alert('There is a priority task. Complete it first.')
+                return
+            }
+
             if (card.completedIndexes.includes(data.index)) {
                 card.completedIndexes = card.completedIndexes.filter(i => i !== data.index)
             } else {
@@ -256,11 +326,55 @@ let app = new Vue ({
         saveToLocalStorage() {
             localStorage.setItem('notes-app', JSON.stringify(this.allCards))
         },
+        toggleSkipInCard(data) {
+            const card = this.allCards.find(card => card.id === data.cardId)
+            if (!card) return
 
+            if (card.isPriority) {
+                alert('Priority cards cannot be skipped')
+                return
+            }
+
+            if (!card.isPriority && this.isPriorityBlocked) {
+                alert('There is a priority task. Complete it first.')
+                return
+            }
+
+            if (!card.skippedIndexes) {
+                card.skippedIndexes = []
+            }
+
+            if (card.skippedIndexes.includes(data.index)) {
+                card.skippedIndexes = card.skippedIndexes.filter(i => i !== data.index)
+            } else {
+                card.skippedIndexes.push(data.index)
+            }
+
+            if (card.column === 2 && card.skippedIndexes.length > 0) {
+                card.column = 4
+            }
+
+            this.saveToLocalStorage()
+        },
         loadFromLocalStorage() {
             const saved = localStorage.getItem('notes-app')
             if (saved) {
                 this.allCards = JSON.parse(saved)
+            }
+        },
+        checkPriorityBlocking () {
+            const priorityCard = this.allCards.find(card =>
+                card.isPriority && card.column !== 3
+            )
+
+            if (priorityCard) {
+                this.isPriorityBlocked = true
+                this.priorityCardId = priorityCard.id
+                return true
+            } else {
+                this.isPriorityBlocked = false
+                this.priorityCardId = null
+                return false
             }
         }
     },
